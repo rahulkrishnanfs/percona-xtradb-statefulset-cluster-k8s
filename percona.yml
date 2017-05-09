@@ -1,0 +1,75 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+  labels:
+    name: mysql
+spec:
+  ports:
+    - port: 3306
+      name: mysql
+      targetPort: 3306
+      protocol: TCP
+  clusterIP: None      
+  selector: 
+    name: mysql
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-client
+  labels:
+    name: mysql-client
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 3306
+      name: server
+      targetPort: 3306
+      protocol: TCP
+  selector: 
+    name: mysql
+---
+
+apiVersion: apps/v1beta1
+kind: StatefulSet
+metadata:
+  name: mysql
+  labels:
+    name: mysql
+spec:
+  serviceName: mysql
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        name: mysql
+    spec:
+      containers:
+        - name: mysql
+          image: perconalab/percona-xtradb-cluster:5.6
+          ports:
+            - containerPort: 3306
+              name: mysql
+          env:
+            - name: CLUSTER_NAME
+              value: percona
+            - name:  DISCOVERY_SERVICE
+              value: etcd:2379
+            - name: MYSQL_ROOT_PASSWORD
+              value: password
+            - name: XTRABACKUP_PASSWORD
+              value: password
+          volumeMounts:
+            - name: db
+              mountPath: /var/lib/mysql
+  volumeClaimTemplates:
+    - metadata:
+        name: db
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 3Gi
+
